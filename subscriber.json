@@ -1,12 +1,16 @@
 {
-    "subscribers": [
-        {
-            "nama": "Fadhel Fikri",
-            "email": "fadhelfikri98@gmail.com"
-        },
-        {
-            "nama": "Achmad Marx",
-            "email": "achmadmarx@zohomail.com"
-        }
-    ]
+  "subscribers": [
+    {
+      "nama": "Fadhel Fikri",
+      "email": "fadhelfikri98@gmail.com"
+    },
+    {
+      "nama": "Achmad Marx",
+      "email": "achmadmarx@zohomail.com"
+    },
+    {
+      "nama": "Fadhel Fikri",
+      "email": "fadhel98fikri@gmail.com"
+    }
+  ]
 }
