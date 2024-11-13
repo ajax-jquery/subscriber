@@ -87,34 +87,30 @@ async function main() {
   });
 
   try {
-    // 1. Ambil RSS feed
     console.log("Mengambil RSS feed...");
     const feed = await parser.parseURL(RSS_URL);
 
-    // 2. Ambil data subscriber dari Firebase
     console.log("Mengambil data subscriber...");
     const subscriberData = await fetchJSON(SUBSCRIBER_URL);
     const subscribers = Object.values(subscriberData); // Mengonversi objek ke array
 
-    // 3. Ambil data 'lastsent' dari Firebase
     console.log("Mengambil data 'lastsent'...");
     const lastSentData = await fetchJSON(LAST_SENT_URL);
     const sentLinks = new Set(Object.values(lastSentData.link || {}));
 
-    // 4. Ambil artikel baru yang belum dikirim
     const newArticles = feed.items.filter((item) => !sentLinks.has(item.link));
     if (newArticles.length === 0) {
       console.log("Tidak ada artikel baru.");
       return;
     }
 
-    // 5. Ambil template email
     console.log("Mengambil template email...");
     const templateHTML = await fetchTemplate(TEMPLATE_URL);
     const compiledTemplate = handlebars.compile(templateHTML);
 
     // 6. Kirim email untuk setiap subscriber
     console.log("Mengirim email...");
+    const emailPromises = [];
     for (const subscriber of subscribers) {
       for (const article of newArticles) {
         const emailContent = compiledTemplate({
@@ -131,24 +127,22 @@ async function main() {
           html: emailContent,
         };
 
-        try {
-          await transporter.sendMail(mailOptions);
-          console.log(`Email berhasil dikirim ke ${subscriber.email}`);
-        } catch (err) {
-          console.error(`Gagal mengirim email ke ${subscriber.email}:`, err);
-        }
+        emailPromises.push(
+          transporter.sendMail(mailOptions)
+            .then(() => console.log(`Email berhasil dikirim ke ${subscriber.email}`))
+            .catch((err) => console.error(`Gagal mengirim email ke ${subscriber.email}:`, err))
+        );
       }
     }
 
+    // Tunggu semua email dikirim
+    await Promise.all(emailPromises);
+
     // 7. Perbarui 'lastsent.json' dengan artikel yang baru saja dikirim
     const updatedLinks = [...sentLinks, ...newArticles.map((item) => item.link)];
+    await updateLastSentInFirebase(updatedLinks);
 
-    try {
-      await updateLastSentInFirebase(updatedLinks);
-      console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
-    } catch (err) {
-      console.error("Gagal memperbarui file di Firebase:", err);
-    }
+    console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
   } catch (err) {
     console.error("Terjadi kesalahan:", err);
   }
