@@ -3,11 +3,31 @@ const Parser = require("rss-parser");
 const fetch = require("node-fetch");
 const nodemailer = require("nodemailer");
 const handlebars = require("handlebars");
+const firebaseAdmin = require('firebase-admin');
+
+// Inisialisasi Firebase
+const serviceAccount = {
+  type: "service_account",
+  project_id: process.env.FIREBASE_PROJECT_ID,
+  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
+  client_id: process.env.FIREBASE_CLIENT_ID,
+  auth_uri: process.env.FIREBASE_AUTH_URI,
+  token_uri: process.env.FIREBASE_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
+};
+
+firebaseAdmin.initializeApp({
+  credential: firebaseAdmin.credential.cert(serviceAccount),
+  databaseURL: process.env.FIREBASE_DATABASE_URL
+});
 
 // Konstanta URL
 const RSS_URL = "https://sabdaliterasi.xyz/rss-mail.xml";
 const SUBSCRIBER_URL = "https://subscribesabda-default-rtdb.firebaseio.com/subscribers.json";
-const LAST_SENT_URL = "https://ajax-jquery.github.io/subscriber/lastSentArticle.json";
+const LAST_SENT_URL = "https://subscribesabda-default-rtdb.firebaseio.com/lastsent.json";
 const TEMPLATE_URL = "https://sabdaliterasi.xyz/templatemail.html";
 
 // Konfigurasi nodemailer
@@ -30,54 +50,21 @@ async function fetchTemplate(url) {
   return await response.text();
 }
 
-async function updateFileOnGitHub(content) {
-  const repo = process.env.GITHUB_REPO;
-  const filePath = process.env.GITHUB_FILE_PATH;
-  const branch = process.env.GITHUB_BRANCH;
-  const token = process.env.GITHUB_TOKEN;
+// Fungsi untuk memperbarui 'lastsent.json' di Firebase
+async function updateLastSentInFirebase(newLinks) {
+  const db = firebaseAdmin.database();
+  const ref = db.ref('lastsent');
 
-  const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+  // Ambil data yang ada
+  const snapshot = await ref.once('value');
+  const existingData = snapshot.val() || {};
 
-  // Ambil SHA file untuk pembaruan
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  // Gabungkan data baru dengan data yang sudah ada
+  const updatedData = { ...existingData, link: newLinks };
 
-  if (!response.ok) {
-    console.error("Gagal mengambil file dari GitHub:", await response.text());
-    throw new Error("Gagal mengambil file dari GitHub");
-  }
-
-  const fileData = await response.json();
-  const sha = fileData.sha;
-
-  // Encode content to Base64
-  const encodedContent = Buffer.from(JSON.stringify(content, null, 2)).toString("base64");
-
-  // Perbarui file
-  const updateResponse = await fetch(url, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message: "Update lastSentArticle.json via script",
-      content: encodedContent,
-      sha: sha,
-      branch: branch,
-    }),
-  });
-
-  if (!updateResponse.ok) {
-    console.error("Gagal memperbarui file di GitHub:", await updateResponse.text());
-    throw new Error("Gagal memperbarui file di GitHub");
-  }
-
-  console.log("File lastSentArticle.json berhasil diperbarui di GitHub.");
+  // Update data di Firebase
+  await ref.set(updatedData);
+  console.log("lastsent.json berhasil diperbarui di Firebase.");
 }
 
 // Fungsi utama
@@ -95,13 +82,13 @@ async function main() {
   // 1. Ambil RSS feed
   const feed = await parser.parseURL(RSS_URL);
 
-  // 2. Ambil data subscriber dari Firebase Realtime Database
+  // 2. Ambil data subscriber dari Firebase
   const subscriberData = await fetchJSON(SUBSCRIBER_URL);
   const subscribers = Object.values(subscriberData); // Mengonversi objek ke array
 
-  // 3. Ambil last sent article
+  // 3. Ambil data 'lastsent' dari Firebase
   const lastSentData = await fetchJSON(LAST_SENT_URL);
-  const sentLinks = new Set(lastSentData.links);
+  const sentLinks = new Set(Object.values(lastSentData.link || {}));
 
   // 4. Ambil artikel baru yang belum dikirim
   const newArticles = feed.items.filter((item) => !sentLinks.has(item.link));
@@ -140,15 +127,14 @@ async function main() {
     }
   }
 
-  // 7. Perbarui last sent article
+  // 7. Perbarui 'lastsent.json' dengan artikel yang baru saja dikirim
   const updatedLinks = [...sentLinks, ...newArticles.map((item) => item.link)];
-  const updatedLastSent = { links: updatedLinks };
 
   try {
-    await updateFileOnGitHub(updatedLastSent);
-    console.log("File lastSentArticle.json berhasil diperbarui di GitHub.");
+    await updateLastSentInFirebase(updatedLinks);
+    console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
   } catch (err) {
-    console.error("Gagal memperbarui file di GitHub:", err);
+    console.error("Gagal memperbarui file di Firebase:", err);
   }
 }
 
