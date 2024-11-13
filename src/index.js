@@ -108,7 +108,6 @@ async function main() {
     const templateHTML = await fetchTemplate(TEMPLATE_URL);
     const compiledTemplate = handlebars.compile(templateHTML);
 
-    // 6. Kirim email untuk setiap subscriber
     console.log("Mengirim email...");
     const emailPromises = [];
     for (const subscriber of subscribers) {
@@ -138,13 +137,19 @@ async function main() {
     // Tunggu semua email dikirim
     await Promise.all(emailPromises);
 
+    console.log("Email selesai dikirim.");
+
     // 7. Perbarui 'lastsent.json' dengan artikel yang baru saja dikirim
     const updatedLinks = [...sentLinks, ...newArticles.map((item) => item.link)];
     await updateLastSentInFirebase(updatedLinks);
 
     console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
+    
   } catch (err) {
     console.error("Terjadi kesalahan:", err);
+  } finally {
+    console.log("Proses selesai.");
+    process.exit(0); // Pastikan untuk menutup proses dengan jelas
   }
 }
 
