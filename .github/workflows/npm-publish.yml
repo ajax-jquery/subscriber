@@ -1,0 +1,39 @@
+name: Run Node.js Script
+
+# Menentukan kapan workflow ini akan dijalankan
+on:
+  push:
+    branches:
+      - main  # Jalankan workflow saat ada perubahan pada branch 'main'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest  # Menjalankan workflow di sistem operasi Ubuntu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Mengambil kode dari repositori
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'  # Menggunakan versi Node.js 16, Anda bisa sesuaikan dengan versi yang diinginkan
+
+      - name: Install dependencies
+        run: |
+          npm install  # Menginstal dependensi yang ada di package.json
+
+      - name: Run the Node.js script
+        run: |
+          node src/index.js  # Menjalankan skrip utama Node.js Anda (sesuaikan dengan path file skrip)
+        env:
+          SERVICE: ${{ secrets.SERVICE }}  # Menyediakan variabel lingkungan yang dibutuhkan
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          GITHUB_FILE_PATH: ${{ secrets.GITHUB_FILE_PATH }}
+          GITHUB_BRANCH: ${{ secrets.GITHUB_BRANCH }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
