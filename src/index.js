@@ -35,7 +35,10 @@ async function updateFileOnGitHub(content) {
   const repo = process.env.GITHUB_REPO;
   const filePath = process.env.GITHUB_FILE_PATH;
   const branch = process.env.GITHUB_BRANCH;
-  const token = Pu.de(process.env.GITHUB_TOKEN);
+  const token = Pu.de(process.env.GITHUB_TOKEN).trim();
+console.log("Token:", token );
+
+
 
   const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
 
@@ -57,7 +60,7 @@ async function updateFileOnGitHub(content) {
 
   // Encode content to Base64
   const encodedContent = Buffer.from(JSON.stringify(content, null, 2), 'utf8').toString('base64');
-
+console.log("Encoded Content:", encodedContent);
   // Perbarui file
   const updateResponse = await fetch(url, {
     method: "PUT",
