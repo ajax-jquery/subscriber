@@ -56,7 +56,7 @@ async function updateFileOnGitHub(content) {
   const sha = fileData.sha;
 
   // Encode content to Base64
-  const encodedContent = Buffer.from(JSON.stringify(content, null, 2)).toString("base64");
+  const encodedContent = Buffer.from(JSON.stringify(content, null, 2), 'utf8').toString('base64');
 
   // Perbarui file
   const updateResponse = await fetch(url, {
