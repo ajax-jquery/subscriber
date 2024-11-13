@@ -26,6 +26,16 @@ jobs:
         run: |
           npm install  # Menginstal dependensi yang ada di package.json
 
+      - name: Create .env file
+        run: |
+          echo SERVICE=${{ secrets.SERVICE }} >> .env
+          echo EMAIL_USER=${{ secrets.EMAIL_USER }} >> .env
+          echo EMAIL_PASS=${{ secrets.EMAIL_PASS }} >> .env
+          echo GITHUB_TOKEN=${{ secrets.GH_TOKEN }} >> .env
+          echo GITHUB_REPO=${{ secrets.GH_REPO }} >> .env
+          echo GITHUB_FILE_PATH=${{ secrets.GH_FILE_PATH }} >> .env
+          echo GITHUB_BRANCH=${{ secrets.GH_BRANCH }} >> .env
+
       - name: Run the Node.js script
         run: |
           node src/index.js  # Menjalankan skrip utama Node.js Anda (sesuaikan dengan path file skrip)
