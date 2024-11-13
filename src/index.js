@@ -35,7 +35,7 @@ async function updateFileOnGitHub(content) {
   const repo = process.env.GITHUB_REPO;
   const filePath = process.env.GITHUB_FILE_PATH;
   const branch = process.env.GITHUB_BRANCH;
-  const token = Pu.de("X0jzU5rPLVokKVWWtaQYmxYWHF6vZp55V3ikYUBgKsooLxBoLqjFYf==");
+  const token = process.env.GITHUB_TOKEN;
 console.log("Token:", token );
 
 
