@@ -33,7 +33,7 @@ jobs:
           SERVICE: ${{ secrets.SERVICE }}  # Menyediakan variabel lingkungan yang dibutuhkan
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
-          GITHUB_FILE_PATH: ${{ secrets.GITHUB_FILE_PATH }}
-          GITHUB_BRANCH: ${{ secrets.GITHUB_BRANCH }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ secrets.GH_REPO }}
+          GITHUB_FILE_PATH: ${{ secrets.GH_FILE_PATH }}
+          GITHUB_BRANCH: ${{ secrets.GH_BRANCH }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
