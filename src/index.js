@@ -4,6 +4,7 @@ const fetch = require("node-fetch");
 const nodemailer = require("nodemailer");
 const handlebars = require("handlebars");
 const firebaseAdmin = require('firebase-admin');
+
 // Inisialisasi Firebase
 const serviceAccount = {
   type: "service_account",
@@ -42,11 +43,17 @@ const transporter = nodemailer.createTransport({
 // Fungsi utilitas
 async function fetchJSON(url) {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Gagal mendapatkan data dari ${url}`);
+  }
   return await response.json();
 }
 
 async function fetchTemplate(url) {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Gagal mendapatkan template dari ${url}`);
+  }
   return await response.text();
 }
 
@@ -79,64 +86,73 @@ async function main() {
     }
   });
 
-  // 1. Ambil RSS feed
-  const feed = await parser.parseURL(RSS_URL);
+  try {
+    // 1. Ambil RSS feed
+    console.log("Mengambil RSS feed...");
+    const feed = await parser.parseURL(RSS_URL);
 
-  // 2. Ambil data subscriber dari Firebase
-  const subscriberData = await fetchJSON(SUBSCRIBER_URL);
-  const subscribers = Object.values(subscriberData); // Mengonversi objek ke array
+    // 2. Ambil data subscriber dari Firebase
+    console.log("Mengambil data subscriber...");
+    const subscriberData = await fetchJSON(SUBSCRIBER_URL);
+    const subscribers = Object.values(subscriberData); // Mengonversi objek ke array
 
-  // 3. Ambil data 'lastsent' dari Firebase
-  const lastSentData = await fetchJSON(LAST_SENT_URL);
-  const sentLinks = new Set(Object.values(lastSentData.link || {}));
+    // 3. Ambil data 'lastsent' dari Firebase
+    console.log("Mengambil data 'lastsent'...");
+    const lastSentData = await fetchJSON(LAST_SENT_URL);
+    const sentLinks = new Set(Object.values(lastSentData.link || {}));
 
-  // 4. Ambil artikel baru yang belum dikirim
-  const newArticles = feed.items.filter((item) => !sentLinks.has(item.link));
-  if (newArticles.length === 0) {
-    console.log("Tidak ada artikel baru.");
-    return;
-  }
+    // 4. Ambil artikel baru yang belum dikirim
+    const newArticles = feed.items.filter((item) => !sentLinks.has(item.link));
+    if (newArticles.length === 0) {
+      console.log("Tidak ada artikel baru.");
+      return;
+    }
 
-  // 5. Ambil template email
-  const templateHTML = await fetchTemplate(TEMPLATE_URL);
-  const compiledTemplate = handlebars.compile(templateHTML);
+    // 5. Ambil template email
+    console.log("Mengambil template email...");
+    const templateHTML = await fetchTemplate(TEMPLATE_URL);
+    const compiledTemplate = handlebars.compile(templateHTML);
 
-  // 6. Kirim email untuk setiap subscriber
-  for (const subscriber of subscribers) {
-    for (const article of newArticles) {
-      const emailContent = compiledTemplate({
-        title: article.title,
-        Thumbnail: article.thumbnail ? article.thumbnail.$.url : "",
-        link: article.link,
-        fullContent: article.fullContent
-      });
+    // 6. Kirim email untuk setiap subscriber
+    console.log("Mengirim email...");
+    for (const subscriber of subscribers) {
+      for (const article of newArticles) {
+        const emailContent = compiledTemplate({
+          title: article.title,
+          Thumbnail: article.thumbnail ? article.thumbnail.$.url : "",
+          link: article.link,
+          fullContent: article.fullContent
+        });
 
-      const mailOptions = {
-        from: `New Articles Sabda Literasi <newarticles@sabdaliterasi.xyz>`,
-        to: subscriber.email,
-        subject: `Artikel Baru: ${article.title}`,
-        html: emailContent,
-      };
+        const mailOptions = {
+          from: `New Articles Sabda Literasi <newarticles@sabdaliterasi.xyz>`,
+          to: subscriber.email,
+          subject: `Artikel Baru: ${article.title}`,
+          html: emailContent,
+        };
 
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Email berhasil dikirim ke ${subscriber.email}`);
-      } catch (err) {
-        console.error(`Gagal mengirim email ke ${subscriber.email}:`, err);
+        try {
+          await transporter.sendMail(mailOptions);
+          console.log(`Email berhasil dikirim ke ${subscriber.email}`);
+        } catch (err) {
+          console.error(`Gagal mengirim email ke ${subscriber.email}:`, err);
+        }
       }
     }
-  }
 
-  // 7. Perbarui 'lastsent.json' dengan artikel yang baru saja dikirim
-  const updatedLinks = [...sentLinks, ...newArticles.map((item) => item.link)];
+    // 7. Perbarui 'lastsent.json' dengan artikel yang baru saja dikirim
+    const updatedLinks = [...sentLinks, ...newArticles.map((item) => item.link)];
 
-  try {
-    await updateLastSentInFirebase(updatedLinks);
-    console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
+    try {
+      await updateLastSentInFirebase(updatedLinks);
+      console.log("File lastSentArticle.json berhasil diperbarui di Firebase.");
+    } catch (err) {
+      console.error("Gagal memperbarui file di Firebase:", err);
+    }
   } catch (err) {
-    console.error("Gagal memperbarui file di Firebase:", err);
+    console.error("Terjadi kesalahan:", err);
   }
 }
 
 // Jalankan fungsi utama
-main().catch((err) => console.error(err));
+main().catch((err) => console.error("Error utama:", err));
